@@ -154,6 +154,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	static const struct super_operations default_op;
 
 	if (s) {
+<<<<<<< HEAD
 		if (security_sb_alloc(s))
 			goto out_free_sb;
 
@@ -170,6 +171,17 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 #else
 		INIT_LIST_HEAD(&s->s_files);
 #endif
+=======
+		if (security_sb_alloc(s)) {
+			/*
+			 * We cannot call security_sb_free() without
+			 * security_sb_alloc() succeeding. So bail out manually
+			 */
+			kfree(s);
+			s = NULL;
+			goto out;
+		}
+>>>>>>> v3.10.108
 		if (init_sb_writers(s, type))
 			goto err_out;
 		s->s_flags = flags;
@@ -219,10 +231,6 @@ out:
 	return s;
 err_out:
 	security_sb_free(s);
-#ifdef CONFIG_SMP
-	if (s->s_files)
-		free_percpu(s->s_files);
-#endif
 	destroy_sb_writers(s);
 out_free_sb:
 	kfree(s);
@@ -238,9 +246,6 @@ out_free_sb:
  */
 static inline void destroy_super(struct super_block *s)
 {
-#ifdef CONFIG_SMP
-	free_percpu(s->s_files);
-#endif
 	destroy_sb_writers(s);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
@@ -727,7 +732,8 @@ int do_remount_sb2(struct vfsmount *mnt, struct super_block *sb, int flags, void
 	   make sure there are no rw files opened */
 	if (remount_ro) {
 		if (force) {
-			mark_files_ro(sb);
+			sb->s_readonly_remount = 1;
+			smp_wmb();
 		} else {
 			retval = sb_prepare_remount_readonly(sb);
 			if (retval)
@@ -1365,8 +1371,8 @@ int freeze_super(struct super_block *sb)
 		}
 	}
 	/*
-	 * This is just for debugging purposes so that fs can warn if it
-	 * sees write activity when frozen is set to SB_FREEZE_COMPLETE.
+	 * For debugging purposes so that fs can warn if it sees write activity
+	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 	up_write(&sb->s_umount);
@@ -1385,7 +1391,7 @@ int thaw_super(struct super_block *sb)
 	int error;
 
 	down_write(&sb->s_umount);
-	if (sb->s_writers.frozen == SB_UNFROZEN) {
+	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE) {
 		up_write(&sb->s_umount);
 		return -EINVAL;
 	}

@@ -414,15 +414,14 @@ static __le32 ext4_dx_csum(struct inode *inode, struct ext4_dir_entry *dirent,
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	__u32 csum;
-	__le32 save_csum;
 	int size;
+	__u32 dummy_csum = 0;
+	int offset = offsetof(struct dx_tail, dt_checksum);
 
 	size = count_offset + (count * sizeof(struct dx_entry));
-	save_csum = t->dt_checksum;
-	t->dt_checksum = 0;
 	csum = ext4_chksum(sbi, ei->i_csum_seed, (__u8 *)dirent, size);
-	csum = ext4_chksum(sbi, csum, (__u8 *)t, sizeof(struct dx_tail));
-	t->dt_checksum = save_csum;
+	csum = ext4_chksum(sbi, csum, (__u8 *)t, offset);
+	csum = ext4_chksum(sbi, csum, (__u8 *)&dummy_csum, sizeof(dummy_csum));
 
 	return cpu_to_le32(csum);
 }
@@ -2112,6 +2111,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	blocks = dir->i_size >> sb->s_blocksize_bits;
 	for (block = 0; block < blocks; block++) {
 		bh = ext4_read_dirblock(dir, block, DIRENT);
+<<<<<<< HEAD
 		if (IS_ERR(bh)) {
 			retval = PTR_ERR(bh);
 			bh = NULL;
@@ -2119,13 +2119,23 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		}
 		retval = add_dirent_to_buf(handle, &fname, dir, inode,
 					   NULL, bh);
+=======
+		if (IS_ERR(bh))
+			return PTR_ERR(bh);
+
+		retval = add_dirent_to_buf(handle, dentry, inode, NULL, bh);
+>>>>>>> v3.10.108
 		if (retval != -ENOSPC)
 			goto out;
 
 		if (blocks == 1 && !dx_fallback &&
 		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX)) {
+<<<<<<< HEAD
 			retval = make_indexed_dir(handle, &fname, dir,
 						  inode, bh);
+=======
+			retval = make_indexed_dir(handle, dentry, inode, bh);
+>>>>>>> v3.10.108
 			bh = NULL; /* make_indexed_dir releases bh */
 			goto out;
 		}
@@ -2146,9 +2156,14 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		initialize_dirent_tail(t, blocksize);
 	}
 
+<<<<<<< HEAD
 	retval = add_dirent_to_buf(handle, &fname, dir, inode, de, bh);
 out:
 	ext4_fname_free_filename(&fname);
+=======
+	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
+out:
+>>>>>>> v3.10.108
 	brelse(bh);
 	if (retval == 0)
 		ext4_set_inode_state(inode, EXT4_STATE_NEWENTRY);

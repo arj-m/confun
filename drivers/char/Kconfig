@@ -598,8 +598,13 @@ config DEVPORT
 	depends on ISA || PCI
 	default y
 	help
+<<<<<<< HEAD
 	  Say Y here if you want to support the /dev/port device. The
 	  /dev/port device is similar to /dev/mem, but for I/O ports.
+=======
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
+>>>>>>> v3.10.108
 
 source "drivers/s390/char/Kconfig"
 
